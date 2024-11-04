@@ -1,7 +1,7 @@
 exports.handler = async (event) => {
     const path = event.resource;
     const method = event.httpMethod;
-
+    
     if (path === '/hello') {
         const response = {
             statusCode: 200,
