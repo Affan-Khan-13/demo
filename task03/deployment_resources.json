@@ -28,17 +28,44 @@
   "task3_api": {
     "resource_type": "api_gateway",
     "deploy_stage": "api",
-    "dependencies": [],
+    "dependencies": [
+      {
+        "resource_name": "hello_world",
+        "resource_type": "lambda"
+      }
+    ],
     "resources": {
       "/hello": {
         "GET": {
-          "request": {
-            "payload": "empty"
-          },
-          "response": {
-            "statusCode": 200,
-            "message": "Hello from Lambda"
-          }
+          "authorization_type": "NONE",  
+          "integration_type": "lambda", 
+          "lambda_name": "hello_world",
+          "api_key_required": false, 
+          "method_request_parameters": {},
+          "integration_request_body_template": {},  
+          "responses": [
+            {
+              "status_code": "200",
+              "response_parameters": {
+                "method.response.body": "application/json"
+              },
+              "response_templates": {
+                "application/json": "{\"statusCode\": 200, \"message\": \"Hello from Lambda\"}"
+              }
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_parameters": {
+                "method.response.body": "application/json"
+              },
+              "response_templates": {
+                "application/json": "{\"statusCode\": 200, \"message\": \"Hello from Lambda\"}"
+              }
+            }
+          ],
+          "default_error_pattern": true 
         }
       }
     },
