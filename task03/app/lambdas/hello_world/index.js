@@ -1,10 +1,13 @@
 exports.handler = async (event) => {
+    console.log("Received event:", JSON.stringify(event, null, 2)); // Log the event to debug
+
     const response = {
-        statusCode: 200,  // HTTP status code (top level, for API Gateway)
-        body: JSON.stringify({  // The body contains a JSON string
-            statusCode: 200,  // statusCode inside the body (as required)
-            message: "Hello from Lambda"  // Your message inside the body
+        statusCode: 200, // HTTP status code
+        body: JSON.stringify({
+            statusCode: 200,
+            message: "Hello from Lambda"
         })
     };
+    console.log("Response:", JSON.stringify(response)); // Log the response to debug
     return response;
 };
