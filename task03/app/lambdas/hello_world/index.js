@@ -1,9 +1,9 @@
 exports.handler = async (event) => {
     const response = {
-        statusCode: 200, // HTTP status code
-        body: JSON.stringify({ // Body contains statusCode and message
-            statusCode: 200,
-            message: "Hello from Lambda"
+        statusCode: 200,  // HTTP status code (top level, for API Gateway)
+        body: JSON.stringify({  // The body contains a JSON string
+            statusCode: 200,  // statusCode inside the body (as required)
+            message: "Hello from Lambda"  // Your message inside the body
         })
     };
     return response;
