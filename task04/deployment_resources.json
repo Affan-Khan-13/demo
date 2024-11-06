@@ -26,6 +26,7 @@
       ],
       "Version": "2012-10-17"
     },
+    "predefined_policies": ["AWSLambdaSQSQueueExecutionRole"],
     "resource_type": "iam_policy",
     "tags": {}
   },
