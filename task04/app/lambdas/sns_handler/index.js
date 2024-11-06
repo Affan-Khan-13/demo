@@ -1,12 +1,8 @@
 exports.handler = async (event) => {
-    console.log("Received SNS Event:", JSON.stringify(event, null, 2));
-    const snsMessage = event.Records[0].Sns.Message;
-    console.log("SNS Message:", snsMessage);
-    return {
+    // TODO implement
+    const response = {
         statusCode: 200,
-        body: JSON.stringify({
-            message: "SNS message logged successfully",
-            snsMessage: snsMessage,
-        }),
+        body: JSON.stringify('Hello from Lambda!'),
     };
+    return response;
 };

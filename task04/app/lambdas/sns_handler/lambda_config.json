@@ -8,12 +8,12 @@
   "memory": 128,
   "timeout": 100,
   "lambda_path": "lambdas\\sns_handler",
-  "dependencies": [],
+  "dependencies": [{
+    "resource_name": "lambda_topic",
+    "resource_type": "sns_topic"
+  }],
   "event_sources": [
-    {
-      "type": "sns",
-      "arn": "arn:aws:sns:eu-central-1:196241772369:lambda_topic"
-    }
+    { "resource_type": "sns_topic", "target_topic": "lambda_topic", "region": "eu-central-1" }
   ],
   "env_variables": {},
   "publish_version": true,
