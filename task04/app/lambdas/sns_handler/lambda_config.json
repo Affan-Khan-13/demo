@@ -13,7 +13,7 @@
     "resource_type": "sns_topic"
   }],
   "event_sources": [
-    { "resource_type": "sns_topic", "target_topic": "lambda_topic", "region": "eu-central-1" }
+    { "resource_type": "sns_topic_trigger", "target_topic": "lambda_topic", "region": "eu-central-1" }
   ],
   "env_variables": {},
   "publish_version": true,
