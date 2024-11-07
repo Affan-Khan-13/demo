@@ -1,23 +1,16 @@
-const AWS = require('aws-sdk');
-
 exports.handler = async (event) => {
-    console.log("Received event:", JSON.stringify(event, null, 2));
-
-    for (const record of event.Records) {
+    event.Records.forEach((record) => {
         console.log('SQS Message Body:', record.body);
+    });
 
-        try {
-            const messageBody = JSON.parse(record.body);
-            console.log("Parsed Message Body:", messageBody);
-        } catch (error) {
-            console.log("Error parsing message body:", error);
-        }
-    }
+    console.log("Hello from Lambda");
 
-    return {
+    const response = {
         statusCode: 200,
         body: JSON.stringify({
-            message: "Successfully processed SQS messages.",
+            message: "Hello from Lambda"
         }),
     };
+
+    return response;
 };
