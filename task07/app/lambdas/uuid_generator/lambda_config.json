@@ -12,8 +12,7 @@
   "event_sources": [
     {
       "resource_type": "cloudwatch_rule_trigger",
-      "rule_name": "uuid_trigger",
-      "schedule_expression": "rate(1 minute)"
+      "target_rule": "uuid_trigger"
     }
   ],
   "env_variables": { "S3_BUCKET_NAME": "${target_bucket}" },
