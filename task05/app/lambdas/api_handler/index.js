@@ -6,7 +6,7 @@ const moment = require('moment');
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 // Hardcoding the table name as "Events"
-const DYNAMODB_TABLE_NAME = 'Events';
+const DYNAMODB_TABLE_NAME = process.env.target_table;
 
 exports.handler = async (event, context) => {
   try {
