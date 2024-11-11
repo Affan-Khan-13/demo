@@ -10,15 +10,20 @@ exports.handler = async (event) => {
         // Generate 10 random UUIDs
         const uuids = Array.from({ length: 10 }, () => uuid.v4());
 
-        // Get the current timestamp for the file name
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-'); // Format to avoid invalid filename characters
-        const fileName = `uuids-${timestamp}.json`; // Include execution start time in the file name
+        // Get the current timestamp in ISO 8601 format (including milliseconds)
+        const timestamp = new Date().toISOString();  // Use the full ISO format without modification
+        const fileName = `${timestamp}`; // Use the exact timestamp as the file name
 
-        // Prepare the S3 bucket and object parameters
+        // Prepare the S3 object structure
+        const s3Object = {
+            ids: uuids,  // UUIDs are placed under the "ids" key
+        };
+
+        // Prepare the S3 upload parameters
         const s3Params = {
             Bucket: BUCKET_NAME,
-            Key: fileName,
-            Body: JSON.stringify(uuids),
+            Key: fileName,  // File name is the timestamp (ISO format)
+            Body: JSON.stringify(s3Object),  // Store the UUIDs in the "ids" array
             ContentType: 'application/json',
         };
 
