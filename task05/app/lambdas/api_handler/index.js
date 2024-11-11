@@ -1,68 +1,56 @@
 const AWS = require('aws-sdk');
 const uuid = require('uuid');
-const dynamoDB = new AWS.DynamoDB.DocumentClient();
+const moment = require('moment');
 
-// Get the DynamoDB table name from environment variables
-const EVENTS_TABLE = "Events";
+// DynamoDB client setup
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
-exports.handler = async (event) => {
-  // Parse the request body
-  let body;
+// Hardcoding the table name as "Events"
+const DYNAMODB_TABLE_NAME = 'Events';
+
+exports.handler = async (event, context) => {
   try {
-    body = JSON.parse(event.body);
-  } catch (error) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({
-        message: 'Invalid JSON in request body'
-      }),
+    // Extracting data from the incoming event
+    const { principalId, content } = event;
+    
+    // Generating a new UUID
+    const newId = uuid.v4();
+    
+    // Getting the current UTC time in ISO 8601 format
+    const currentTime = moment.utc().toISOString();
+
+    // Prepare the item to put into DynamoDB
+    const item = {
+      TableName: DYNAMODB_TABLE_NAME,
+      Item: {
+        id: newId,
+        principalId: principalId,
+        createdAt: currentTime,
+        body: content
+      }
     };
-  }
 
-  // Extract principalId and content from the request body
-  const { principalId, content } = body;
+    // Insert the item into the DynamoDB table
+    await dynamoDb.put(item).promise();
 
-  if (!principalId || !content) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({
-        message: 'Missing required fields: principalId or content'
-      }),
+    // Prepare the event object to return
+    const eventObj = {
+      id: newId,
+      principalId: principalId,
+      createdAt: currentTime,
+      body: content
     };
-  }
 
-  // Generate unique event ID and timestamp
-  const eventId = uuid.v4();
-  const createdAt = new Date().toISOString();
-
-  // Create event data object to store in DynamoDB
-  const eventData = {
-    id: eventId,
-    principalId,
-    createdAt,
-    body: content,
-  };
-
-  // Insert the event data into DynamoDB
-  try {
-    await dynamoDB.put({
-      TableName: EVENTS_TABLE,
-      Item: eventData
-    }).promise();
+    // Return the response
+    return {
+      statusCode: 201,
+      body: JSON.stringify({ event: eventObj })
+    };
   } catch (error) {
+    console.error('Error processing request:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({
-        message: `Error saving event to DynamoDB: ${error.message}`
-      }),
+      body: JSON.stringify({ error: 'Internal Server Error' })
     };
   }
-
-  // Return a response with the created event data
-  return {
-    statusCode: 201,
-    body: JSON.stringify({
-      event: eventData
-    }),
-  };
 };
