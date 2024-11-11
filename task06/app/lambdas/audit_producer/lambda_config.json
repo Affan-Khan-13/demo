@@ -11,7 +11,7 @@
   "dependencies": [],
   "event_sources": [
     {
-      "resource_type": "dynamodb_stream_trigger",
+      "resource_type": "dynamodb_stream",
       "target_table": "Configuration",
       "batch_size": 5
     }
