@@ -9,13 +9,7 @@
   "timeout": 100,
   "lambda_path": "lambdas\\audit_producer",
   "dependencies": [],
-  "event_sources": [
-    {
-      "resource_type": "dynamodb_stream",
-      "target_table": "Configuration",
-      "batch_size": 5
-    }
-  ],
+  "event_sources": [],
   "env_variables": { "target_table": "${target_table}" },
   "publish_version": true,
   "alias": "${lambdas_alias_name}",
