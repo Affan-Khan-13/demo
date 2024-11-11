@@ -11,7 +11,7 @@
   "dependencies": [],
   "event_sources": [
     {
-      "resource_type": "cloudwatch_event_rule",
+      "resource_type": "cloudwatch_trigger",
       "rule_name": "uuid_trigger",
       "schedule_expression": "rate(1 minute)"
     }
