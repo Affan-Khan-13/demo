@@ -11,11 +11,10 @@
   "dependencies": [],
   "event_sources": [
     {
-      "source": "aws:dynamodb",
-      "event_source": {
-        "batch_size": 1,
-        "starting_position": "TRIM_HORIZON"
-      }
+      "resource_type": "dynamodb_trigger",  
+      "target_table": "Configuration", 
+      "batch_size": 1,
+      "starting_position": "TRIM_HORIZON"
     }
   ],
   "env_variables": { "target_table": "${target_table}" },
