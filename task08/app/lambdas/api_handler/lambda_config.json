@@ -15,6 +15,5 @@
   "alias": "${lambdas_alias_name}",
   "url_config": { "auth_type": "NONE" },
   "ephemeral_storage": 512,
-  "tags": {},
-  "layers": ["weather-api"]
+  "tags": {}
 }

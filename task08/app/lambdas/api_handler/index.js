@@ -1,4 +1,4 @@
-const { fetchWeather } = require('/opt/nodejs/fetchWeather')
+
 
 exports.handler = async (event) => {
   try {
