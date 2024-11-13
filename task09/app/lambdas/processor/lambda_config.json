@@ -17,5 +17,8 @@
   "alias": "${lambdas_alias_name}",
   "url_config": {},
   "ephemeral_storage": 512,
-  "tags": {}
+  "tags": {},
+  "tracingConfig": {
+    "mode": "Active"
+  }
 }
