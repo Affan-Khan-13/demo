@@ -3,6 +3,7 @@ exports.handler = async (event) => {
   try {
     // Fetch the weather data using the layer
     const weatherData = await fetchWeather();
+    console.log(weatherData);
     
     // Return the weather data
     return {
