@@ -13,10 +13,8 @@
   "env_variables": {},
   "publish_version": true,
   "alias": "${lambdas_alias_name}",
-  "url_config": {
-    "auth_type": "NONE"
-  },
+  "url_config": { "auth_type": "NONE" },
   "ephemeral_storage": 512,
   "tags": {},
-  "layers": ["weather-api-layer"]
+  "layers": ["weather-api"]
 }
