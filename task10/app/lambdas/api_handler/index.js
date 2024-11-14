@@ -1,226 +1,343 @@
 const AWS = require('aws-sdk');
 const cognito = new AWS.CognitoIdentityServiceProvider();
-const dynamoDB = new AWS.DynamoDB.DocumentClient();
-const uuid = require('uuid');
-
-// Global variables
-const userPoolId = process.env.CUPId;
-const clientId = process.env.CUPClientId;
-const tablesTable = process.env.Tables;
-const reservationsTable = process.env.Reservations;
-
-// Helper Functions
-function isValidEmail(email) {
-    const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    return re.test(email);
-}
-
-function isValidPassword(password) {
-    const minLength = 12;
-    const hasNumber = /\d/;
-    const hasUpperCase = /[A-Z]/;
-    const hasLowerCase = /[a-z]/;
-    const hasSpecialChar = /[!%^*$#-_]/;
-    return (
-        password.length >= minLength &&
-        hasNumber.test(password) &&
-        hasUpperCase.test(password) &&
-        hasLowerCase.test(password) &&
-        hasSpecialChar.test(password)
-    );
-}
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
+const { v4: uuidv4 } = require('uuid');
 
 exports.handler = async (event) => {
-    const path = event.requestContext.http.path;
-    const method = event.requestContext.http.method;
-    const body = event.body ? JSON.parse(event.body) : {};
+    const { path, httpMethod, headers, body } = event;
+    console.log('API request:', event);
+
+    const region = process.env.REGION;
+    const tablesTable = process.env.TABLES_TABLE;
+    const reservationsTable = process.env.RESERVATIONS_TABLE;
+    const bookingUserpool = process.env.BOOKING_USERPOOL;
 
     const response = {
         statusCode: 200,
         headers: {
-            "Content-Type": "application/json"
+            'Content-Type': 'application/json',
         },
-        body: JSON.stringify({}),
+        body: '',
     };
 
-    try {
-        if (path === "/signup" && method === "POST") {
-            response.body = await handleSignup(body);
-        } else if (path === "/signin" && method === "POST") {
-            response.body = await handleSignin(body);
-        } else if (path === "/tables" && method === "GET") {
-            response.body = await getTables();
-        } else if (path === "/tables" && method === "POST") {
-            response.body = await createTable(body);
-        } else if (path === "/tables/{tableId}" && method === "GET") {
-            response.body = await getTableDetails(event);
-        } else if (path === "/reservations" && method === "POST") {
-            response.body = await createReservation(body);
-        } else if (path === "/reservations" && method === "GET") {
-            response.body = await getReservations();
-        } else {
-            throw new Error("Unsupported route");
-        }
-    } catch (error) {
-        response.statusCode = 400;
-        response.body = JSON.stringify({ error: error.message });
-    }
+    switch (path) {
+        case '/signup':
+            const userPoolId = await getUserPoolId();
+            return await signUpUser(body, userPoolId, response);
 
-    return response;
+        case '/signin':
+            const signInUserPoolId = await getUserPoolId();
+            const clientId = await createAppClient(signInUserPoolId);
+            return await signInUser(body, signInUserPoolId, clientId, response);
+
+        case '/tables':
+            if (httpMethod === 'POST') {
+                const tableObject = buildTableObject(body);
+                return await persistTable(tableObject, tablesTable, response);
+            } else {
+                return await scanTable(tablesTable, response);
+            }
+
+        case '/reservations':
+            if (httpMethod === 'POST') {
+                const reservationObject = buildReservationObject(body);
+                return await persistReservation(reservationObject, reservationsTable, tablesTable, response);
+            } else {
+                return await scanReservations(reservationsTable, response);
+            }
+
+        default:
+            return await findTable(headers.authorization, tablesTable, response);
+    }
 };
 
-// /signup POST
-async function handleSignup(body) {
-    const { firstName, lastName, email, password } = body;
+const buildTableObject = (body) => {
+    console.log('Calling buildTableObject...');
+    return {
+        id: parseInt(body.id),
+        number: parseInt(body.number),
+        places: parseInt(body.places),
+        isVip: body.isVip === 'true',
+        minOrder: body.minOrder ? parseInt(body.minOrder) : null,
+    };
+};
 
-    // Validation
-    if (!email || !password || !firstName || !lastName) {
-        throw new Error("Missing required fields");
-    }
-    if (!isValidEmail(email)) {
-        throw new Error("Invalid email format");
-    }
-    if (!isValidPassword(password)) {
-        throw new Error("Password must be at least 12 characters long, contain a number, an uppercase letter, a lowercase letter, and one special character.");
-    }
+const buildReservationObject = (body) => {
+    console.log('Calling buildReservationObject...');
+    return {
+        tableNumber: parseInt(body.tableNumber),
+        clientName: body.clientName,
+        phoneNumber: body.phoneNumber,
+        date: body.date,
+        slotTimeStart: body.slotTimeStart,
+        slotTimeEnd: body.slotTimeEnd,
+    };
+};
 
+const buildTableResponse = (item) => {
+    return {
+        id: item.id,
+        number: item.number,
+        places: item.places,
+        isVip: item.isVip,
+        minOrder: item.minOrder || null,
+    };
+};
+
+const buildReservationResponse = (item) => {
+    return {
+        tableNumber: item.tableNumber,
+        clientName: item.clientName,
+        phoneNumber: item.phoneNumber,
+        date: item.date,
+        slotTimeStart: item.slotTimeStart,
+        slotTimeEnd: item.slotTimeEnd,
+    };
+};
+
+const createAppClient = async (userPoolId) => {
+    console.log('Calling createAppClient...');
     const params = {
-        ClientId: clientId,
-        Username: email,
-        Password: password,
-        UserAttributes: [
-            { Name: 'given_name', Value: firstName },
-            { Name: 'family_name', Value: lastName },
-            { Name: 'email', Value: email }
-        ]
+        UserPoolId: userPoolId,
+        ClientName: 'api_client',
+        ExplicitAuthFlows: ['ADMIN_USER_PASSWORD_AUTH', 'ALLOW_REFRESH_TOKEN_AUTH'],
     };
 
+    const result = await cognito.createUserPoolClient(params).promise();
+    console.log('createAppClient', result.UserPoolClient.ClientId);
+    return result.UserPoolClient.ClientId;
+};
+
+const signUpUser = async (body, userPoolId, response) => {
+    console.log('Calling signUpUser...');
     try {
-        const data = await cognito.signUp(params).promise();
-        const confirmParams = {
-            Username: email,
-            UserPoolId: userPoolId
+        const params = {
+            UserPoolId: userPoolId,
+            Username: body.email,
+            TemporaryPassword: body.password,
+            UserAttributes: [{ Name: 'email', Value: body.email }],
+            MessageAction: 'SUPPRESS',
         };
-        await cognito.adminConfirmSignUp(confirmParams).promise();
-        return { message: 'OK' };
-    } catch (error) {
-        throw new Error(`Sign-up failed: ${error.message}`);
+
+        await cognito.adminCreateUser(params).promise();
+        console.log('User has been created');
+        response.body = JSON.stringify({ message: 'User created successfully' });
+        return response;
+    } catch (err) {
+        console.error('Error while signing up user', err);
+        response.statusCode = 400;
+        response.body = JSON.stringify({ error: err.message });
+        return response;
     }
-}
+};
 
-// /signin POST
-async function handleSignin(body) {
-    const { email, password } = body;
-
+const signInUser = async (body, userPoolId, clientId, response) => {
+    console.log('Calling signInUser...');
     const params = {
-        AuthFlow: 'ADMIN_NO_SRP_AUTH',
+        AuthFlow: 'ADMIN_USER_PASSWORD_AUTH',
+        AuthParameters: {
+            USERNAME: body.email,
+            PASSWORD: body.password,
+        },
         UserPoolId: userPoolId,
         ClientId: clientId,
-        AuthParameters: {
-            USERNAME: email,
-            PASSWORD: password
+    };
+
+    try {
+        const authResponse = await cognito.adminInitiateAuth(params).promise();
+        console.log('Auth response:', authResponse);
+
+        let authResult = authResponse.AuthenticationResult;
+
+        if (authResponse.ChallengeName === 'NEW_PASSWORD_REQUIRED') {
+            const challengeParams = {
+                UserPoolId: userPoolId,
+                ClientId: clientId,
+                Session: authResponse.Session,
+                ChallengeName: 'NEW_PASSWORD_REQUIRED',
+                ChallengeResponses: {
+                    NEW_PASSWORD: body.password,
+                    USERNAME: body.email,
+                },
+            };
+
+            const challengeResponse = await cognito.adminRespondToAuthChallenge(challengeParams).promise();
+            console.log('Challenge passed:', challengeResponse.AuthenticationResult);
+            authResult = challengeResponse.AuthenticationResult;
         }
-    };
 
-    try {
-        const data = await cognito.adminInitiateAuth(params).promise();
-        const accessToken = data.AuthenticationResult.AccessToken;
-        return { accessToken };
-    } catch (error) {
-        throw new Error('Authentication failed');
+        response.body = JSON.stringify({ idToken: authResult.IdToken });
+        return response;
+    } catch (err) {
+        console.error('Error while signing in user', err);
+        response.statusCode = 400;
+        response.body = JSON.stringify({ error: err.message });
+        return response;
     }
-}
+};
 
-// /tables GET
-async function getTables() {
-    const params = {
-        TableName: tablesTable
-    };
-
+const getUserPoolId = async () => {
+    console.log('Calling getUserPoolId...');
     try {
-        const data = await dynamoDB.scan(params).promise();
-        return { tables: data.Items };
-    } catch (error) {
-        throw new Error('Failed to retrieve tables');
+        const result = await cognito.listUserPools({ MaxResults: 50 }).promise();
+        const userPool = result.UserPools.find((pool) => pool.Name === process.env.BOOKING_USERPOOL);
+        console.log('User pool id:', userPool.Id);
+        return userPool.Id;
+    } catch (err) {
+        console.error('Error while listing user pools:', err);
+        throw new Error('Unable to get UserPoolId');
     }
-}
+};
 
-// /tables POST
-async function createTable(body) {
-    const { id, number, places, isVip, minOrder } = body;
-    
+const persistTable = async (table, tablesTable, response) => {
+    console.log('Calling persistTable...');
+    try {
+        const params = {
+            TableName: tablesTable,
+            Item: table,
+        };
+        await dynamoDb.put(params).promise();
+        response.body = JSON.stringify({ id: table.id });
+        return response;
+    } catch (err) {
+        console.error('Error while persisting table', err);
+        response.statusCode = 400;
+        response.body = JSON.stringify({ error: err.message });
+        return response;
+    }
+};
+
+const scanTable = async (tablesTable, response) => {
+    console.log('Calling scanTable...');
+    try {
+        const params = {
+            TableName: tablesTable,
+        };
+        const result = await dynamoDb.scan(params).promise();
+        const tables = result.Items.map(buildTableResponse);
+        response.body = JSON.stringify({ tables });
+        return response;
+    } catch (err) {
+        console.error('Error while scanning table', err);
+        response.statusCode = 400;
+        response.body = JSON.stringify({ error: err.message });
+        return response;
+    }
+};
+
+const findTable = async (tableId, tablesTable, response) => {
+    console.log('Calling findTable...');
+    try {
+        const params = {
+            TableName: tablesTable,
+            Key: { id: tableId },
+        };
+        const result = await dynamoDb.get(params).promise();
+        if (!result.Item) {
+            response.statusCode = 404;
+            response.body = JSON.stringify({ error: 'Table not found' });
+            return response;
+        }
+
+        const table = buildTableResponse(result.Item);
+        response.body = JSON.stringify(table);
+        return response;
+    } catch (err) {
+        console.error('Error while finding table', err);
+        response.statusCode = 400;
+        response.body = JSON.stringify({ error: err.message });
+        return response;
+    }
+};
+
+const scanReservations = async (reservationsTable, response) => {
+    console.log('Calling scanReservations...');
+    try {
+        const params = {
+            TableName: reservationsTable,
+        };
+        const result = await dynamoDb.scan(params).promise();
+        const reservations = result.Items.map(buildReservationResponse);
+        response.body = JSON.stringify({ reservations });
+        return response;
+    } catch (err) {
+        console.error('Error while scanning reservations', err);
+        response.statusCode = 400;
+        response.body = JSON.stringify({ error: err.message });
+        return response;
+    }
+};
+
+const persistReservation = async (reservation, reservationsTable, tablesTable, response) => {
+    console.log('Calling persistReservation...');
+    try {
+        const tableExists = await validateTable(reservation, tablesTable);
+        const reservationExists = await validateReservation(reservation, reservationsTable);
+
+        if (!tableExists || !reservationExists) {
+            response.statusCode = 400;
+            response.body = JSON.stringify({
+                error: 'The table does not exist or a reservation already exists for this slot.',
+            });
+            return response;
+        }
+
+        const params = {
+            TableName: reservationsTable,
+            Item: {
+                id: uuidv4(),
+                tableNumber: reservation.tableNumber,
+                clientName: reservation.clientName,
+                phoneNumber: reservation.phoneNumber,
+                date: reservation.date,
+                slotTimeStart: reservation.slotTimeStart,
+                slotTimeEnd: reservation.slotTimeEnd,
+            },
+        };
+
+        await dynamoDb.put(params).promise();
+        response.body = JSON.stringify({ id: params.Item.id });
+        return response;
+    } catch (err) {
+        console.error('Error while persisting reservation', err);
+        response.statusCode = 400;
+        response.body = JSON.stringify({ error: err.message });
+        return response;
+    }
+};
+
+const validateTable = async (reservation, tablesTable) => {
     const params = {
         TableName: tablesTable,
-        Item: {
-            id: id,
-            number: number,
-            places: places,
-            isVip: isVip,
-            minOrder: minOrder || null
-        }
+        FilterExpression: '#tn = :tableNumber',
+        ExpressionAttributeNames: {
+            '#tn': 'tableNumber',
+        },
+        ExpressionAttributeValues: {
+            ':tableNumber': reservation.tableNumber,
+        },
     };
 
-    try {
-        await dynamoDB.put(params).promise();
-        return { id };
-    } catch (error) {
-        throw new Error('Failed to create table');
-    }
-}
+    const result = await dynamoDb.scan(params).promise();
+    return result.Items.length === 1;
+};
 
-// /tables/{tableId} GET
-async function getTableDetails(event) {
-    const tableId = event.pathParameters.tableId;
-
-    const params = {
-        TableName: tablesTable,
-        Key: { id: tableId }
-    };
-
-    try {
-        const data = await dynamoDB.get(params).promise();
-        return data.Item ? data.Item : { error: 'Table not found' };
-    } catch (error) {
-        throw new Error('Failed to retrieve table details');
-    }
-}
-
-// /reservations POST
-async function createReservation(body) {
-    const { tableNumber, clientName, phoneNumber, date, slotTimeStart, slotTimeEnd } = body;
-    const reservationId = uuid.v4();
-
+const validateReservation = async (reservation, reservationsTable) => {
     const params = {
         TableName: reservationsTable,
-        Item: {
-            reservationId: reservationId,
-            tableNumber: tableNumber,
-            clientName: clientName,
-            phoneNumber: phoneNumber,
-            date: date,
-            slotTimeStart: slotTimeStart,
-            slotTimeEnd: slotTimeEnd
-        }
+        FilterExpression: '#tn = :tableNumber and #sts = :slotTimeStart and #ste = :slotTimeEnd',
+        ExpressionAttributeNames: {
+            '#tn': 'tableNumber',
+            '#sts': 'slotTimeStart',
+            '#ste': 'slotTimeEnd',
+        },
+        ExpressionAttributeValues: {
+            ':tableNumber': reservation.tableNumber,
+            ':slotTimeStart': reservation.slotTimeStart,
+            ':slotTimeEnd': reservation.slotTimeEnd,
+        },
     };
 
-    try {
-        await dynamoDB.put(params).promise();
-        return { reservationId };
-    } catch (error) {
-        throw new Error('Failed to create reservation');
-    }
-}
-
-// /reservations GET
-async function getReservations() {
-    const params = {
-        TableName: reservationsTable
-    };
-
-    try {
-        const data = await dynamoDB.scan(params).promise();
-        return { reservations: data.Items };
-    } catch (error) {
-        throw new Error('Failed to retrieve reservations');
-    }
-}
+    const result = await dynamoDb.scan(params).promise();
+    return result.Items.length === 0;
+};
