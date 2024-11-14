@@ -11,10 +11,18 @@
   "dependencies": [],
   "event_sources": [],
   "env_variables": {
+    "CUPId": {
+      "resource_name": "{$booking_userpool}",
+      "resource_type": "cognito_idp",
+      "parameter": "id"
+    },
+    "CUPClientId": {
+      "resource_name": "{$booking_userpool}",
+      "resource_type": "cognito_idp",
+      "parameter": "client_id"
+    },
     "Tables": "${tables_table}",
-    "Reservations": "${reservations_table}",
-    "COGNITO_USER_POOL_ID": "${booking_userpool}",
-    "COGNITO_APP_CLIENT_ID": "${cognito_app_client_id}"
+    "Reservations": "${reservations_table}"
   },
   "publish_version": true,
   "alias": "${lambdas_alias_name}",
