@@ -25,10 +25,7 @@
       "Version": "2012-10-17"
     },
     "resource_type": "iam_policy",
-    "tags": {},
-    "TracingConfig": {
-      "Mode": "Active"
-    }
+    "tags": {}
   },
   "Weather": {
     "resource_type": "dynamodb_table",

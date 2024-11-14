@@ -18,5 +18,5 @@
   "url_config": { "auth_type": "NONE" },
   "ephemeral_storage": 512,
   "tags": {},
-  "tracing": "Active"
+  "tracing_mode": "Active"
 }
