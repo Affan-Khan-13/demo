@@ -7,8 +7,8 @@ const cognitoIdentityServiceProvider = new AWS.CognitoIdentityServiceProvider({
 exports.handler = async (event) => {
     console.log(event);
     const body = JSON.parse(event.body);
-    const userPoolId = process.env.CUPId;
-    const clientId = process.env.CUPClientId;
+    const userPoolId = process.env.booking_userpool;
+    const clientId = process.env.booking_userpool_client;
 
     if (event.resource === '/signin') {
         const params = {
