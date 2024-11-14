@@ -167,11 +167,11 @@
     "minimum_compression_size": 0,
     "tags": {},
     "authorizers": {
-      "cognito-authorizer": {
+      "authorizer": {
         "type": "COGNITO_USER_POOLS",
         "identity_source": "method.request.header.Authorization",
         "ttl": 300,
-        "user_pools": ["simple-booking-userpool"]
+        "user_pools": ["${booking_userpool}"]
       }
     }
   }
