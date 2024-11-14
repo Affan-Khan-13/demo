@@ -28,67 +28,89 @@
   "task10_api": {
     "resource_type": "api_gateway",
     "deploy_stage": "api",
-    "minimum_compression_size": 0,
+    "dependencies": [],
     "resources": {
       "/signup": {
-        "method": {
-          "POST": {
-            "authorizer": "cognito_authorizer",
-            "integration": {
-              "type": "lambda",
-              "lambda_function": "api_handler"
-            }
-          }
+        "POST": {
+          "authorization_type": "NONE",
+          "integration_type": "lambda",
+          "lambda_name": "api_handler",
+          "api_key_required": false,
+          "method_request_parameters": {},
+          "integration_request_body_template": {},
+          "responses": [],
+          "integration_responses": [],
+          "default_error_pattern": true
         }
       },
       "/signin": {
-        "method": {
-          "POST": {
-            "authorizer": "cognito_authorizer",
-            "integration": {
-              "type": "lambda",
-              "lambda_function": "api_handler"
-            }
-          }
+        "POST": {
+          "authorization_type": "NONE",
+          "integration_type": "lambda",
+          "lambda_name": "api_handler",
+          "api_key_required": false,
+          "method_request_parameters": {},
+          "integration_request_body_template": {},
+          "responses": [],
+          "integration_responses": [],
+          "default_error_pattern": true
         }
       },
       "/tables": {
-        "method": {
-          "POST": {
-            "authorizer": "cognito_authorizer",
-            "integration": {
-              "type": "lambda",
-              "lambda_function": "api_handler"
-            }
-          },
-          "GET": {
-            "authorizer": "cognito_authorizer",
-            "integration": {
-              "type": "lambda",
-              "lambda_function": "api_handler"
-            }
-          }
+        "GET": {
+          "authorization_type": "COGNITO_USER_POOLS",
+          "authorizer_name": "cognito_authorizer",
+          "integration_type": "lambda",
+          "lambda_name": "api_handler",
+          "api_key_required": false,
+          "method_request_parameters": {},
+          "integration_request_body_template": {},
+          "responses": [],
+          "integration_responses": [],
+          "default_error_pattern": true
+        },
+        "POST": {
+          "authorization_type": "COGNITO_USER_POOLS",
+          "authorizer_name": "cognito_authorizer",
+          "integration_type": "lambda",
+          "lambda_name": "api_handler",
+          "api_key_required": false,
+          "method_request_parameters": {},
+          "integration_request_body_template": {},
+          "responses": [],
+          "integration_responses": [],
+          "default_error_pattern": true
         }
       },
       "/reservations": {
-        "method": {
-          "POST": {
-            "authorizer": "cognito_authorizer",
-            "integration": {
-              "type": "lambda",
-              "lambda_function": "api_handler"
-            }
-          },
-          "GET": {
-            "authorizer": "cognito_authorizer",
-            "integration": {
-              "type": "lambda",
-              "lambda_function": "api_handler"
-            }
-          }
+        "GET": {
+          "authorization_type": "COGNITO_USER_POOLS",
+          "authorizer_name": "cognito_authorizer",
+          "integration_type": "lambda",
+          "lambda_name": "api_handler",
+          "api_key_required": false,
+          "method_request_parameters": {},
+          "integration_request_body_template": {},
+          "responses": [],
+          "integration_responses": [],
+          "default_error_pattern": true
+        },
+        "POST": {
+          "authorization_type": "COGNITO_USER_POOLS",
+          "authorizer_name": "cognito_authorizer",
+          "integration_type": "lambda",
+          "lambda_name": "api_handler",
+          "api_key_required": false,
+          "method_request_parameters": {},
+          "integration_request_body_template": {},
+          "responses": [],
+          "integration_responses": [],
+          "default_error_pattern": true
         }
       }
-    }
+    },
+    "minimum_compression_size": 0,
+    "tags": {}
   },
   "simple-booking-userpool": {
     "resource_type": "cognito_idp",
@@ -99,13 +121,9 @@
       "require_lowercase": true,
       "require_numbers": true
     },
-    "auto_verified_attributes": [
-      "email"
-    ],
+    "auto_verified_attributes": ["email"],
     "sms_configuration": {},
-    "username_attributes": [
-      "email"
-    ],
+    "username_attributes": ["email"],
     "custom_attributes": [],
     "client": {},
     "tags": {}
