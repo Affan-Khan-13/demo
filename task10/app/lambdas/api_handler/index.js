@@ -40,17 +40,64 @@ exports.handler = async (event) => {
     return response;
 };
 
+// Validate Email format
+function isValidEmail(email) {
+    const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return re.test(email);
+}
+
+// Validate Password complexity
+function isValidPassword(password) {
+    const minLength = 8;
+    const hasNumber = /\d/;
+    const hasUpperCase = /[A-Z]/;
+    const hasLowerCase = /[a-z]/;
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/;
+
+    return (
+        password.length >= minLength &&
+        hasNumber.test(password) &&
+        hasUpperCase.test(password) &&
+        hasLowerCase.test(password) &&
+        hasSpecialChar.test(password)
+    );
+}
+
 // Handler for /signup POST
 async function handleSignup(event) {
     const { firstName, lastName, email, password } = JSON.parse(event.body);
-    
+
     // Validate input
     if (!email || !password || !firstName || !lastName) {
         throw new Error("Missing required fields");
     }
-    
+
+    // Validate email format
+    if (!isValidEmail(email)) {
+        throw new Error("Invalid email format");
+    }
+
+    // Validate password
+    if (!isValidPassword(password)) {
+        throw new Error("Password does not meet the required complexity");
+    }
+
+    // Check if the user already exists
+    try {
+        await cognito.adminGetUser({
+            UserPoolId: COGNITO_USER_POOL_ID,
+            Username: email,
+        }).promise();
+        throw new Error("User already exists");
+    } catch (error) {
+        if (error.code !== "UserNotFoundException") {
+            throw error;
+        }
+    }
+
+    // Create the user
     const params = {
-        UserPoolId: COGNITO_USER_POOL_ID, // Using global variable for user pool ID
+        UserPoolId: COGNITO_USER_POOL_ID,
         Username: email,
         UserAttributes: [
             { Name: "email", Value: email },
@@ -68,7 +115,7 @@ async function handleSignup(event) {
 // Handler for /signin POST
 async function handleSignin(event) {
     const { email, password } = JSON.parse(event.body);
-    
+
     const params = {
         AuthFlow: "USER_PASSWORD_AUTH",
         ClientId: COGNITO_USER_POOL_ID, // Using global variable for UserPool ID
@@ -78,9 +125,16 @@ async function handleSignin(event) {
         },
     };
 
-    const response = await cognito.initiateAuth(params).promise();
-    const accessToken = response.AuthenticationResult.AccessToken;
-    return { accessToken };
+    try {
+        const response = await cognito.initiateAuth(params).promise();
+        const accessToken = response.AuthenticationResult.AccessToken;
+        return { accessToken };
+    } catch (error) {
+        if (error.code === 'UserNotFoundException' || error.code === 'NotAuthorizedException') {
+            throw new Error('Invalid email or password');
+        }
+        throw error;
+    }
 }
 
 // Handler for /tables GET
@@ -96,7 +150,7 @@ async function getTables(event) {
 // Handler for /tables POST
 async function createTable(event) {
     const { id, number, places, isVip, minOrder } = JSON.parse(event.body);
-    
+
     const params = {
         TableName: TABLES, // Using global variable for table name
         Item: {
@@ -115,7 +169,7 @@ async function createTable(event) {
 // Handler for /reservations POST
 async function createReservation(event) {
     const { tableNumber, clientName, phoneNumber, date, slotTimeStart, slotTimeEnd } = JSON.parse(event.body);
-    
+
     const reservationId = AWS.util.uuid.v4(); // Generate unique reservation ID
 
     const params = {
