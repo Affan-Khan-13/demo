@@ -11,18 +11,19 @@
   "dependencies": [],
   "event_sources": [],
   "env_variables": {
-    "BOOKING_USERPOOL": {
-      "resource_name": "{$booking_userpool}",
+    "booking_userpool": {
+      "resource_name": "${booking_userpool}",
       "resource_type": "cognito_idp",
       "parameter": "id"
     },
-    "BOOKING_USERPOOL_CLIENTID": {
-      "resource_name": "{$booking_userpool}",
+    "booking_userpool_client": {
+      "resource_name": "${booking_userpool}",
       "resource_type": "cognito_idp",
       "parameter": "client_id"
     },
-    "TABLES_TABLE": "${tables_table}",
-    "RESERVATIONS_TABLE": "${reservations_table}"
+    "TABLES": "${tables_table}",
+    "RESERVATION": "${reservations_table}",
+    "region": "${region}"
   },
   "publish_version": true,
   "alias": "${lambdas_alias_name}",
