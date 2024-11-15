@@ -158,7 +158,7 @@
         "identity_source": "method.request.header.Authorization",
         "ttl": 300,
         "user_pools": [
-          "simple-booking-userpool"
+          "${booking_userpool}"
         ]
       }
     }

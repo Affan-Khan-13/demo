@@ -1,321 +1,359 @@
-const {
-  CognitoIdentityProviderClient,
-  SignUpCommand,
-  InitiateAuthCommand,
-} = require("@aws-sdk/client-cognito-identity-provider");
-const {
-  DynamoDBClient,
-  PutItemCommand,
-  QueryCommand,
-  GetItemCommand,
-} = require("@aws-sdk/client-dynamodb");
+const AWS = require("aws-sdk");
 const { v4: uuidv4 } = require("uuid");
-const { APIGatewayProxyHandler } = require("aws-lambda");
+const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const { DynamoDBDocumentClient, PutCommand } = require("@aws-sdk/lib-dynamodb");
 
-// Initialize DynamoDB and Cognito Clients
-const cognitoClient = new CognitoIdentityProviderClient({
+const cognitoIdentityServiceProvider = new AWS.CognitoIdentityServiceProvider({
   region: process.env.region,
 });
 
-const dynamoDbClient = new DynamoDBClient({
-  region: process.env.region,
-});
+const dynamoDBClient = new DynamoDBClient({ region: "eu-central-1" });
+const dynamoDBDocumentClient = DynamoDBDocumentClient.from(dynamoDBClient);
 
-// Define the Cognito User Pool ID and Client ID
-const USER_POOL_ID = process.env.USER_POOL_ID;
-const CLIENT_ID = process.env.CLIENT_ID;
+const dynamoDB = new AWS.DynamoDB.DocumentClient();
+const reservationsTable = "cmtr-77278c6b-Reservations-test";
+const tablesTable = process.env.tablestable;
 
-// CORS headers
-const corsHeaders = {
-  "Access-Control-Allow-Headers":
-    "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "*",
-  "Accept-Version": "*",
-};
+exports.handler = async (event) => {
+  const userPoolId = process.env.CUPId;
+  const clientId = process.env.CUPClientId;
 
-// Route Handlers
-const handlers = {
-  "/signup:POST": async (event) => {
-    const body = JSON.parse(event.body);
-    const userPoolId = process.env.USER_POOL_ID; // Use the correct environment variable
-    const clientId = process.env.CLIENT_ID; // Use the correct environment variable
+  // Parse the request body
+  let body = JSON.parse(event.body);
 
+  console.log(body);
+  console.log(event);
+
+  // Handle `/signup` endpoint
+  if (event.resource === "/signup" && event.httpMethod === "POST") {
+    console.log("THIS IS SIMG UP");
+
+    const { email, password, firstName, lastName } = body;
     const params = {
       ClientId: clientId,
-      Username: body.email,
-      Password: body.password,
-      UserAttributes: [{ Name: "email", Value: body.email }],
+      Username: email,
+      Password: password,
+      UserAttributes: [{ Name: "email", Value: email }],
+      // MessageAction: "SUPPRESS",
     };
 
+    // const params = {
+    //     ClientId:clientId,
+    //     UserPoolId: userPoolId,
+    //     Username: email,
+    //     Password: password,
+    //     MessageAction: "SUPPRESS",
+    //     UserAttributes: [
+    //         { Name: 'email', Value: email },
+    //         { Name: 'name', Value: firstName + lastName }
+    //     ]
+    // };
     try {
-      // Sign up the user
       const data = await cognitoIdentityServiceProvider
         .signUp(params)
         .promise();
-
-      // Immediately confirm the user
       const confirmParams = {
         Username: body.email,
         UserPoolId: userPoolId,
       };
-
-      await cognitoIdentityServiceProvider
+      const confirmedResult = await cognitoIdentityServiceProvider
         .adminConfirmSignUp(confirmParams)
         .promise();
 
       return {
-        statusCode: 201, // Resource created successfully
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: "User registered and confirmed successfully",
-        }),
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "User created successfully" }),
       };
     } catch (error) {
-      console.error(error);
+      console.log(error);
+
       return {
-        statusCode: 400, // Bad request (e.g., invalid email, password too weak, etc.)
-        headers: {
-          "Content-Type": "application/json",
-        },
+        statusCode: 400,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          error: "Signing up failed",
+          error: "Signup failed",
           details: error.message,
         }),
       };
     }
-  },
+  }
 
-  // Handler for /signin endpoint
-  "/signin:POST": async (event) => {
-    const body = JSON.parse(event.body);
-    const userPoolId = process.env.USER_POOL_ID; // Use the correct environment variable
-    const clientId = process.env.CLIENT_ID; // Use the correct environment variable
-
+  // Handle `/signin` endpoint
+  if (event.resource === "/signin" && event.httpMethod === "POST") {
+    const { email, password } = body;
     const params = {
       AuthFlow: "ADMIN_NO_SRP_AUTH",
       UserPoolId: userPoolId,
       ClientId: clientId,
       AuthParameters: {
-        USERNAME: body.email,
-        PASSWORD: body.password,
+        USERNAME: email,
+        PASSWORD: password,
       },
     };
 
     try {
-      // Authenticate the user
       const data = await cognitoIdentityServiceProvider
         .adminInitiateAuth(params)
         .promise();
-
-      const idToken = data.AuthenticationResult.IdToken;
-      const accessToken = data.AuthenticationResult.AccessToken; // Optional: Add if needed for future requests
+      console.log(data);
 
       return {
-        statusCode: 200, // OK
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ idToken: idToken, accessToken: accessToken }),
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accessToken: data.AuthenticationResult.IdToken || "blank",
+        }),
+      };
+    } catch (error) {
+      console.log(error);
+
+      return {
+        statusCode: 400,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          error: "Authentication failed",
+          details: error,
+        }),
+      };
+    }
+  }
+
+  if (event.resource === "/tables" && event.httpMethod === "GET") {
+    const params = {
+      TableName: tablesTable,
+    };
+    try {
+      const data = await dynamoDB.scan(params).promise();
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tables: data.Items }), // Returns all tables
       };
     } catch (error) {
       console.error(error);
       return {
-        statusCode: 400, // Bad request (invalid credentials)
-        headers: {
-          "Content-Type": "application/json",
-        },
+        statusCode: 500,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          error: "Authentication failed",
+          error: "Failed to fetch tables",
           details: error.message,
         }),
       };
     }
-  },
-
-  "/tables:POST": async (event) => {
-    const { number, places, isVip, minOrder } = JSON.parse(event.body);
-    if (!number || !places) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: "Missing required fields" }),
-      };
-    }
-
-    // DynamoDB to create table
-    const putTableCommand = new PutItemCommand({
-      TableName: process.env.TABLES_TABLE,
-      Item: {
-        id: { S: uuidv4() },
-        number: { N: String(number) },
-        places: { N: String(places) },
-        isVip: { BOOL: isVip },
-        minOrder: minOrder ? { N: String(minOrder) } : { N: "0" },
-      },
-    });
-
-    try {
-      await dynamoDbClient.send(putTableCommand);
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ id: uuidv4() }),
-      };
-    } catch (error) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: `Error: ${error.message}` }),
-      };
-    }
-  },
-
-  "/tables:GET": async (event) => {
-    // DynamoDB to get all tables
-    const queryTablesCommand = new QueryCommand({
-      TableName: process.env.TABLES_TABLE,
-    });
-
-    try {
-      const data = await dynamoDbClient.send(queryTablesCommand);
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ tables: data.Items }),
-      };
-    } catch (error) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: `Error: ${error.message}` }),
-      };
-    }
-  },
-
-  "/tables/{tableId}:GET": async (event) => {
-    const tableId = event.pathParameters.tableId;
-
-    // DynamoDB to get table by ID
-    const getTableCommand = new GetItemCommand({
-      TableName: process.env.TABLES_TABLE,
-      Key: {
-        id: { S: tableId },
-      },
-    });
-
-    try {
-      const data = await dynamoDbClient.send(getTableCommand);
-      return {
-        statusCode: 200,
-        body: JSON.stringify(data.Item),
-      };
-    } catch (error) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: `Error: ${error.message}` }),
-      };
-    }
-  },
-
-  "/reservations:POST": async (event) => {
-    const {
-      tableNumber,
-      clientName,
-      phoneNumber,
-      date,
-      slotTimeStart,
-      slotTimeEnd,
-    } = JSON.parse(event.body);
-    if (
-      !tableNumber ||
-      !clientName ||
-      !phoneNumber ||
-      !date ||
-      !slotTimeStart ||
-      !slotTimeEnd
-    ) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: "Missing required fields" }),
-      };
-    }
-
-    // DynamoDB to create reservation
-    const reservationId = uuidv4();
-    const putReservationCommand = new PutItemCommand({
-      TableName: process.env.RESERVATIONS_TABLE,
-      Item: {
-        reservationId: { S: reservationId },
-        tableNumber: { N: String(tableNumber) },
-        clientName: { S: clientName },
-        phoneNumber: { S: phoneNumber },
-        date: { S: date },
-        slotTimeStart: { S: slotTimeStart },
-        slotTimeEnd: { S: slotTimeEnd },
-      },
-    });
-
-    try {
-      await dynamoDbClient.send(putReservationCommand);
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ reservationId }),
-      };
-    } catch (error) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: `Error: ${error.message}` }),
-      };
-    }
-  },
-
-  "/reservations:GET": async (event) => {
-    // DynamoDB to fetch all reservations
-    const queryReservationsCommand = new QueryCommand({
-      TableName: process.env.RESERVATIONS_TABLE,
-    });
-
-    try {
-      const data = await dynamoDbClient.send(queryReservationsCommand);
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ reservations: data.Items }),
-      };
-    } catch (error) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: `Error: ${error.message}` }),
-      };
-    }
-  },
-
-  default: async (event) => {
-    return { statusCode: 404, body: JSON.stringify({ message: "Not Found" }) };
-  },
-};
-
-// Lambda Handler
-exports.handler = async (event) => {
-  try {
-    const route = getRouteKey(event);
-    const handler = handlers[route] || handlers["default"];
-    const response = await handler(event);
-
-    return {
-      statusCode: response.statusCode,
-      body: JSON.stringify(response.body),
-      headers: corsHeaders,
-    };
-  } catch (error) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ message: `Error: ${error.message}` }),
-      headers: corsHeaders,
-    };
   }
-};
 
-// Get route key
-function getRouteKey(event) {
-  let path = event.resource;
-  if (path.match(/^\/tables\/\d+$/)) path = "/tables/{tableId}";
-  return `${path}:${event.httpMethod}`;
-}
+  if (event.resource === "/tables" && event.httpMethod === "POST") {
+    try {
+      const params = {
+        TableName: tablesTable,
+        Item: body,
+      };
+      await dynamoDB.put(params).promise();
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: body.id }),
+      };
+    } catch (e) {
+      console.log(e);
+      return {
+        statusCode: 500,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "error" }),
+      };
+    }
+  }
+
+  // Handle `/tables/{tableId}` resource for GET method
+  if (event.resource === "/tables/{tableId}" && event.httpMethod === "GET") {
+    const tableId = event.pathParameters.tableId;
+    const params = {
+      TableName: tablesTable,
+      Key: { id: parseInt(tableId) }, // Assuming `id` is the primary key in the tablesTable
+    };
+    try {
+      const data = await dynamoDB.get(params).promise();
+      if (data.Item) {
+        return {
+          statusCode: 200,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...data.Item }),
+        };
+      } else {
+        return {
+          statusCode: 404,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ error: "Table not found" }),
+        };
+      }
+    } catch (error) {
+      console.error(error);
+      return {
+        statusCode: 500,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          error: "Failed to fetch table data",
+          details: error.message,
+        }),
+      };
+    }
+  }
+
+  if (event.resource === "/reservations" && event.httpMethod === "GET") {
+    try {
+      const params = { TableName: reservationsTable };
+      const data = await dynamoDB.scan(params).promise();
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reservations: data.Items }), // Replace with actual data
+      };
+    } catch (e) {
+      console.log(e);
+
+      return {
+        statusCode: 500,
+        headers: { "Content-Type": "application/json" },
+        body: e.message,
+      };
+    }
+  }
+
+  async function checkIfTableExists(tableNumber) {
+    var params = {
+      ExpressionAttributeValues: {
+        ":tableNumber": parseInt(tableNumber),
+      },
+      FilterExpression: "number = :tableNumber",
+      KeyConditionExpression: "number = :tableNumber",
+      ProjectionExpression: "id, places",
+      TableName: "cmtr-77278c6b-Tables-test",
+    };
+
+    const data = await dynamoDB.scan(params).promise();
+    return data.Items.length > 0;
+  }
+
+  async function isTableExist(tableNumber) {
+    const parsedTableNumber = parseInt(tableNumber);
+    //we check if table exists here
+    try {
+      const response = await dynamoDB
+        .scan({
+          TableName: "cmtr-77278c6b-Tables-test",
+          FilterExpression: "#number = :tableNumberValue",
+          ExpressionAttributeNames: {
+            "#number": "number", // Ensure "number" is the actual attribute name
+          },
+          ExpressionAttributeValues: {
+            ":tableNumberValue": parsedTableNumber,
+          },
+        })
+        .promise();
+      return response.Items.length > 0;
+    } catch (error) {
+      console.error("Error checking table existence:", error);
+      return false;
+    }
+  }
+
+  async function hasOverlappingReservation(reservationData) {
+    try {
+      const tableNumber = reservationData.tableNumber;
+      const response = await dynamoDB
+        .scan({
+          TableName: "cmtr-77278c6b-Reservations-test",
+          ExpressionAttributeValues: {
+            ":tableNumberValue": parseInt(tableNumber),
+          },
+          FilterExpression: "tableNumber = :tableNumberValue",
+        })
+        .promise();
+      for (const item of response.Items) {
+        const existingStart = new Date(
+          `${item.date} ${item.slotTimeStart}`
+        ).getTime();
+        const existingEnd = new Date(
+          `${item.date} ${item.slotTimeEnd}`
+        ).getTime();
+        const newStart = new Date(
+          `${reservationData.date} ${reservationData.slotTimeStart}`
+        ).getTime();
+        const newEnd = new Date(
+          `${reservationData.date} ${reservationData.slotTimeEnd}`
+        ).getTime();
+
+        // Check if the time slots overlap
+        if (newStart < existingEnd && newEnd > existingStart) {
+          return true; // Overlap detected
+        }
+      }
+
+      return false; // No overlap
+    } catch (e) {
+      console.error(e);
+
+      throw e;
+    }
+  }
+
+  if (event.resource === "/reservations" && event.httpMethod === "POST") {
+    try {
+      // identify if table exists
+      const tableExistence = await isTableExist(body.tableNumber);
+      if (!tableExistence) {
+        console.log("table do not exist");
+        return {
+          statusCode: 400,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: "table do not exist" }),
+        };
+      }
+      // identify if new reservation overlaping older
+      const isOverlaping = await hasOverlappingReservation(body);
+      if (isOverlaping) {
+        console.log("You are overlapping reservation. Cancel");
+        return {
+          statusCode: 400,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: "You are overlapping reservation. Cancel",
+          }),
+        };
+      }
+
+      const id = uuidv4();
+      const params = {
+        TableName: "cmtr-77278c6b-Reservations-test",
+        Item: {
+          id: id,
+          tableNumber: body.tableNumber,
+          clientName: body.clientName,
+          phoneNumber: body.phoneNumber,
+          date: body.date,
+          slotTimeStart: body.slotTimeStart,
+          slotTimeEnd: body.slotTimeEnd,
+        },
+      };
+      await dynamoDB.put(params).promise();
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reservationId: id }),
+      };
+    } catch (e) {
+      console.log(e);
+      return {
+        statusCode: 500,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: e.message }),
+      };
+    }
+  }
+
+  return {
+    statusCode: 404,
+    body: JSON.stringify({ message: "Resource not found" }),
+  };
+};
