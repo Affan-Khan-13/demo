@@ -47,15 +47,6 @@
       ]
     }
   },
-  "api_handler-role": {
-    "predefined_policies": [],
-    "principal_service": "lambda",
-    "custom_policies": [
-      "lambda-basic-execution"
-    ],
-    "resource_type": "iam_role",
-    "tags": {}
-  },
   "task10_api": {
     "resource_type": "api_gateway",
     "deploy_stage": "api",
