@@ -32,7 +32,7 @@
       "require_lowercase": false,
       "require_numbers": false
     },
-    "auto_verified_attributes": ["email"],
+    "auto_verified_attributes": [],
     "sms_configuration": {},
     "username_attributes": [],
     "custom_attributes": [],

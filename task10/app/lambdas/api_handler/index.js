@@ -1,6 +1,15 @@
-const { CognitoIdentityProviderClient, SignUpCommand, InitiateAuthCommand } = require('@aws-sdk/client-cognito-identity-provider');
-const { DynamoDBClient, PutItemCommand, QueryCommand, GetItemCommand } = require('@aws-sdk/client-dynamodb');
-const { v4: uuidv4 } = require('uuid');
+const {
+  CognitoIdentityProviderClient,
+  SignUpCommand,
+  InitiateAuthCommand,
+} = require("@aws-sdk/client-cognito-identity-provider");
+const {
+  DynamoDBClient,
+  PutItemCommand,
+  QueryCommand,
+  GetItemCommand,
+} = require("@aws-sdk/client-dynamodb");
+const { v4: uuidv4 } = require("uuid");
 const { APIGatewayProxyHandler } = require("aws-lambda");
 
 // Initialize DynamoDB and Cognito Clients
@@ -18,71 +27,121 @@ const CLIENT_ID = process.env.CLIENT_ID;
 
 // CORS headers
 const corsHeaders = {
-  "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
+  "Access-Control-Allow-Headers":
+    "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "*",
-  "Accept-Version": "*"
+  "Accept-Version": "*",
 };
 
 // Route Handlers
 const handlers = {
   "/signup:POST": async (event) => {
-    const { firstName, lastName, email, password } = JSON.parse(event.body);
-    if (!email || !password || !firstName || !lastName) {
-      return { statusCode: 400, body: JSON.stringify({ message: "Missing required fields" }) };
-    }
-    
-    // Cognito sign-up
-    const signUpCommand = new SignUpCommand({
-      ClientId: CLIENT_ID,
-      Username: email,
-      Password: password,
-      UserAttributes: [
-        { Name: 'email', Value: email },
-        { Name: 'given_name', Value: firstName },
-        { Name: 'family_name', Value: lastName }
-      ]
-    });
+    const body = JSON.parse(event.body);
+    const userPoolId = process.env.USER_POOL_ID; // Use the correct environment variable
+    const clientId = process.env.CLIENT_ID; // Use the correct environment variable
+
+    const params = {
+      ClientId: clientId,
+      Username: body.email,
+      Password: body.password,
+      UserAttributes: [{ Name: "email", Value: body.email }],
+    };
 
     try {
-      await cognitoClient.send(signUpCommand);
-      return { statusCode: 200, body: JSON.stringify({ message: "Account created successfully" }) };
+      // Sign up the user
+      const data = await cognitoIdentityServiceProvider
+        .signUp(params)
+        .promise();
+
+      // Immediately confirm the user
+      const confirmParams = {
+        Username: body.email,
+        UserPoolId: userPoolId,
+      };
+
+      await cognitoIdentityServiceProvider
+        .adminConfirmSignUp(confirmParams)
+        .promise();
+
+      return {
+        statusCode: 201, // Resource created successfully
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "User registered and confirmed successfully",
+        }),
+      };
     } catch (error) {
-      return { statusCode: 400, body: JSON.stringify({ message: `Error: ${error.message}` }) };
+      console.error(error);
+      return {
+        statusCode: 400, // Bad request (e.g., invalid email, password too weak, etc.)
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          error: "Signing up failed",
+          details: error.message,
+        }),
+      };
     }
   },
 
+  // Handler for /signin endpoint
   "/signin:POST": async (event) => {
-    const { email, password } = JSON.parse(event.body);
-    if (!email || !password) {
-      return { statusCode: 400, body: JSON.stringify({ message: "Missing required fields" }) };
-    }
+    const body = JSON.parse(event.body);
+    const userPoolId = process.env.USER_POOL_ID; // Use the correct environment variable
+    const clientId = process.env.CLIENT_ID; // Use the correct environment variable
 
-    // Cognito sign-in
-    const signInCommand = new InitiateAuthCommand({
-      AuthFlow: 'USER_PASSWORD_AUTH',
-      ClientId: CLIENT_ID,
+    const params = {
+      AuthFlow: "ADMIN_NO_SRP_AUTH",
+      UserPoolId: userPoolId,
+      ClientId: clientId,
       AuthParameters: {
-        USERNAME: email,
-        PASSWORD: password,
+        USERNAME: body.email,
+        PASSWORD: body.password,
       },
-    });
+    };
 
     try {
-      const data = await cognitoClient.send(signInCommand);
+      // Authenticate the user
+      const data = await cognitoIdentityServiceProvider
+        .adminInitiateAuth(params)
+        .promise();
+
+      const idToken = data.AuthenticationResult.IdToken;
+      const accessToken = data.AuthenticationResult.AccessToken; // Optional: Add if needed for future requests
+
       return {
-        statusCode: 200,
-        body: JSON.stringify({ accessToken: data.AuthenticationResult.AccessToken })
+        statusCode: 200, // OK
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ idToken: idToken, accessToken: accessToken }),
       };
     } catch (error) {
-      return { statusCode: 400, body: JSON.stringify({ message: `Error: ${error.message}` }) };
+      console.error(error);
+      return {
+        statusCode: 400, // Bad request (invalid credentials)
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          error: "Authentication failed",
+          details: error.message,
+        }),
+      };
     }
   },
 
   "/tables:POST": async (event) => {
     const { number, places, isVip, minOrder } = JSON.parse(event.body);
     if (!number || !places) {
-      return { statusCode: 400, body: JSON.stringify({ message: "Missing required fields" }) };
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ message: "Missing required fields" }),
+      };
     }
 
     // DynamoDB to create table
@@ -94,17 +153,20 @@ const handlers = {
         places: { N: String(places) },
         isVip: { BOOL: isVip },
         minOrder: minOrder ? { N: String(minOrder) } : { N: "0" },
-      }
+      },
     });
 
     try {
       await dynamoDbClient.send(putTableCommand);
       return {
         statusCode: 200,
-        body: JSON.stringify({ id: uuidv4() })
+        body: JSON.stringify({ id: uuidv4() }),
       };
     } catch (error) {
-      return { statusCode: 400, body: JSON.stringify({ message: `Error: ${error.message}` }) };
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ message: `Error: ${error.message}` }),
+      };
     }
   },
 
@@ -118,10 +180,13 @@ const handlers = {
       const data = await dynamoDbClient.send(queryTablesCommand);
       return {
         statusCode: 200,
-        body: JSON.stringify({ tables: data.Items })
+        body: JSON.stringify({ tables: data.Items }),
       };
     } catch (error) {
-      return { statusCode: 400, body: JSON.stringify({ message: `Error: ${error.message}` }) };
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ message: `Error: ${error.message}` }),
+      };
     }
   },
 
@@ -133,24 +198,44 @@ const handlers = {
       TableName: process.env.TABLES_TABLE,
       Key: {
         id: { S: tableId },
-      }
+      },
     });
 
     try {
       const data = await dynamoDbClient.send(getTableCommand);
       return {
         statusCode: 200,
-        body: JSON.stringify(data.Item)
+        body: JSON.stringify(data.Item),
       };
     } catch (error) {
-      return { statusCode: 400, body: JSON.stringify({ message: `Error: ${error.message}` }) };
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ message: `Error: ${error.message}` }),
+      };
     }
   },
 
   "/reservations:POST": async (event) => {
-    const { tableNumber, clientName, phoneNumber, date, slotTimeStart, slotTimeEnd } = JSON.parse(event.body);
-    if (!tableNumber || !clientName || !phoneNumber || !date || !slotTimeStart || !slotTimeEnd) {
-      return { statusCode: 400, body: JSON.stringify({ message: "Missing required fields" }) };
+    const {
+      tableNumber,
+      clientName,
+      phoneNumber,
+      date,
+      slotTimeStart,
+      slotTimeEnd,
+    } = JSON.parse(event.body);
+    if (
+      !tableNumber ||
+      !clientName ||
+      !phoneNumber ||
+      !date ||
+      !slotTimeStart ||
+      !slotTimeEnd
+    ) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ message: "Missing required fields" }),
+      };
     }
 
     // DynamoDB to create reservation
@@ -165,17 +250,20 @@ const handlers = {
         date: { S: date },
         slotTimeStart: { S: slotTimeStart },
         slotTimeEnd: { S: slotTimeEnd },
-      }
+      },
     });
 
     try {
       await dynamoDbClient.send(putReservationCommand);
       return {
         statusCode: 200,
-        body: JSON.stringify({ reservationId })
+        body: JSON.stringify({ reservationId }),
       };
     } catch (error) {
-      return { statusCode: 400, body: JSON.stringify({ message: `Error: ${error.message}` }) };
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ message: `Error: ${error.message}` }),
+      };
     }
   },
 
@@ -189,16 +277,19 @@ const handlers = {
       const data = await dynamoDbClient.send(queryReservationsCommand);
       return {
         statusCode: 200,
-        body: JSON.stringify({ reservations: data.Items })
+        body: JSON.stringify({ reservations: data.Items }),
       };
     } catch (error) {
-      return { statusCode: 400, body: JSON.stringify({ message: `Error: ${error.message}` }) };
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ message: `Error: ${error.message}` }),
+      };
     }
   },
 
-  "default": async (event) => {
+  default: async (event) => {
     return { statusCode: 404, body: JSON.stringify({ message: "Not Found" }) };
-  }
+  },
 };
 
 // Lambda Handler
@@ -211,13 +302,13 @@ exports.handler = async (event) => {
     return {
       statusCode: response.statusCode,
       body: JSON.stringify(response.body),
-      headers: corsHeaders
+      headers: corsHeaders,
     };
   } catch (error) {
     return {
       statusCode: 400,
       body: JSON.stringify({ message: `Error: ${error.message}` }),
-      headers: corsHeaders
+      headers: corsHeaders,
     };
   }
 };
