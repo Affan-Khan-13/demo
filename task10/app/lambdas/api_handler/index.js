@@ -11,12 +11,12 @@ const dynamoDBClient = new DynamoDBClient({ region: "eu-central-1" });
 const dynamoDBDocumentClient = DynamoDBDocumentClient.from(dynamoDBClient);
 
 const dynamoDB = new AWS.DynamoDB.DocumentClient();
-const reservationsTable = "cmtr-77278c6b-Reservations-test";
-const tablesTable = process.env.tablestable;
+const reservationsTable = process.env.reservations_table;
+const tablesTable = process.env.tables_table;
 
 exports.handler = async (event) => {
-  const userPoolId = process.env.CUPId;
-  const clientId = process.env.CUPClientId;
+  const userPoolId = process.env.COGNITO_ID;
+  const clientId = process.env.CLIENT_ID;
 
   // Parse the request body
   let body = JSON.parse(event.body);
