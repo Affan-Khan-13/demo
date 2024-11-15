@@ -4,39 +4,19 @@
   "func_name": "lambdas/api_handler/index.handler",
   "resource_type": "lambda",
   "iam_role_name": "api_handler-role",
-  "runtime": "nodejs20.x",
+  "runtime": "nodejs18.x", 
   "memory": 128,
   "timeout": 100,
-  "lambda_path": "lambdas\\api_handler",
-  "dependencies": [
-    {
-      "resource_name": "${booking_userpool}",
-      "resource_type": "cognito_idp"
-    },
-    {
-      "resource_name": "${tables_table}",
-      "resource_type": "dynamodb_table"
-    },
-    {
-      "resource_name": "${reservations_table}",
-      "resource_type": "dynamodb_table"
-    }
-  ],
+  "lambda_path": "lambdas/api_handler",
+  "dependencies": [],
   "event_sources": [],
   "env_variables": {
-    "booking_userpool": {
-      "resource_name": "${booking_userpool}",
-      "resource_type": "cognito_idp",
-      "parameter": "id"
-    },
-    "booking_userpool_client": {
-      "resource_name": "${booking_userpool}",
-      "resource_type": "cognito_idp",
-      "parameter": "client_id"
-    },
-    "TABLES": "${tables_table}",
-    "RESERVATION": "${reservations_table}",
-    "region": "${region}"
+    "region": "${region}",
+    "tables_table": "${tables_table}",
+    "reservations_table": "${reservations_table}",
+    "booking_userpool": "${booking_userpool}",
+    "COGNITO_ID": "${booking_userpool}",
+    "CLIENT_ID": "${booking_userpool}"
   },
   "publish_version": true,
   "alias": "${lambdas_alias_name}",
