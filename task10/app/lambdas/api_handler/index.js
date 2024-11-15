@@ -16,7 +16,7 @@ const dynamoDBDocumentClient = DynamoDBDocumentClient.from(dynamoDBClient);
 
 
 const dynamoDB = new AWS.DynamoDB.DocumentClient();
-const reservationsTable = process.env.revtable || 'cmtr-c489fdd3-Reservations-test'
+const reservationsTable = 'cmtr-c489fdd3-Reservations-test'
 const tablesTable = process.env.tablestable
 
 exports.handler = async (event) => {
