@@ -361,5 +361,10 @@ exports.handler = async (event) => {
     };
   } else {
     console.log("no body exists");
+    return {
+        statusCode: 400,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "No body was found" }),
+      }
   }
 };
