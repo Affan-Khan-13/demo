@@ -84,6 +84,7 @@
     "location": "eu-central-1",
     "cors": [],
     "policy": {},
+    "static_website_hosting" : true,
     "public_access_block": {
       "block_public_acls": true,
       "ignore_public_acls": true,
