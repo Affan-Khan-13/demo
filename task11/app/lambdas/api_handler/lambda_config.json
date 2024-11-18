@@ -27,18 +27,18 @@
   ],
  
   "env_variables": {
-    "CUPId": {
+    "USERPOOL": {
       "resource_name": "${booking_userpool}",
       "resource_type": "cognito_idp",
       "parameter": "id"
     },
-    "CUPClientId": {
+    "USERPOOLCLIENT": {
       "resource_name": "${booking_userpool}",
       "resource_type": "cognito_idp",
       "parameter": "client_id"
     },
-    "tablestable": "${tables_table}",
-    "revtable": "${reservations_table}"
+    "TABLE": "${tables_table}",
+    "RESERVATION": "${reservations_table}"
   },
   "url_config": {},
   "ephemeral_storage": 512,

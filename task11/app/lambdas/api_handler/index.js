@@ -5,53 +5,34 @@ const cognitoIdentityServiceProvider = new AWS.CognitoIdentityServiceProvider({
     region: process.env.region
 });
 
-
 const dynamoDB = new AWS.DynamoDB.DocumentClient();
-const reservationsTable = process.env.revtable
-const tablesTable = process.env.tablestable
+const reservationsTable = process.env.RESERVATION;
+const tablesTable = process.env.TABLE;
 
 exports.handler = async (event) => {
-    const userPoolId = process.env.CUPId;
-    const clientId = process.env.CUPClientId;
+    const userPoolId = process.env.USERPOOL;
+    const clientId = process.env.USERPOOLCLIENT;
 
     // Parse the request body
-    let body = JSON.parse(event.body)
-
-    console.log(body);
-    console.log(event);
-
+    let body = JSON.parse(event.body);
 
     // Handle `/signup` endpoint
     if (event.resource === '/signup' && event.httpMethod === 'POST') {
-        console.log('THIS IS SIMG UP');
-
-        const { email, password, firstName, lastName } = body;
+        const { email, password } = body;
         const params = {
             ClientId: clientId,
             Username: email,
             Password: password,
             UserAttributes: [{ Name: 'email', Value: email }],
-            // MessageAction: "SUPPRESS", 
         };
 
-        // const params = {
-        //     ClientId:clientId,
-        //     UserPoolId: userPoolId,
-        //     Username: email,
-        //     Password: password,
-        //     MessageAction: "SUPPRESS", 
-        //     UserAttributes: [
-        //         { Name: 'email', Value: email },
-        //         { Name: 'name', Value: firstName + lastName }
-        //     ]
-        // };
         try {
-            const data = await cognitoIdentityServiceProvider.signUp(params).promise();
+            await cognitoIdentityServiceProvider.signUp(params).promise();
             const confirmParams = {
-                Username: body.email,
+                Username: email,
                 UserPoolId: userPoolId
             };
-            const confirmedResult = await cognitoIdentityServiceProvider.adminConfirmSignUp(confirmParams).promise();
+            await cognitoIdentityServiceProvider.adminConfirmSignUp(confirmParams).promise();
 
             return {
                 statusCode: 200,
@@ -59,8 +40,6 @@ exports.handler = async (event) => {
                 body: JSON.stringify({ message: "User created successfully" })
             };
         } catch (error) {
-            console.log(error);
-
             return {
                 statusCode: 400,
                 headers: { "Content-Type": "application/json" },
@@ -84,19 +63,14 @@ exports.handler = async (event) => {
 
         try {
             const data = await cognitoIdentityServiceProvider.adminInitiateAuth(params).promise();
-            console.log(data);
-
             return {
                 statusCode: 200,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    accessToken: data.AuthenticationResult.IdToken ||
-                        'blank'
+                    accessToken: data.AuthenticationResult.IdToken || 'blank'
                 })
             };
         } catch (error) {
-            console.log(error);
-
             return {
                 statusCode: 400,
                 headers: { "Content-Type": "application/json" },
@@ -105,6 +79,7 @@ exports.handler = async (event) => {
         }
     }
 
+    // Handle `/tables` endpoint - GET method
     if (event.resource === '/tables' && event.httpMethod === 'GET') {
         const params = {
             TableName: tablesTable
@@ -117,7 +92,6 @@ exports.handler = async (event) => {
                 body: JSON.stringify({ tables: data.Items }) // Returns all tables
             };
         } catch (error) {
-            console.error(error);
             return {
                 statusCode: 500,
                 headers: { "Content-Type": "application/json" },
@@ -126,37 +100,34 @@ exports.handler = async (event) => {
         }
     }
 
-
+    // Handle `/tables` endpoint - POST method
     if (event.resource === '/tables' && event.httpMethod === 'POST') {
         try {
             const params = {
                 TableName: tablesTable,
                 Item: body
             };
-            await dynamoDB.put(params).promise()
+            await dynamoDB.put(params).promise();
             return {
                 statusCode: 200,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ id: body.id })
             };
         } catch (e) {
-            console.log(e);
             return {
                 statusCode: 500,
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: "error" })
+                body: JSON.stringify({ message: "Error" })
             };
         }
-
     }
-
 
     // Handle `/tables/{tableId}` resource for GET method
     if (event.resource === '/tables/{tableId}' && event.httpMethod === 'GET') {
         const tableId = event.pathParameters.tableId;
         const params = {
             TableName: tablesTable,
-            Key: { id: parseInt(tableId) } // Assuming `id` is the primary key in the tablesTable
+            Key: { id: parseInt(tableId) }
         };
         try {
             const data = await dynamoDB.get(params).promise();
@@ -174,7 +145,6 @@ exports.handler = async (event) => {
                 };
             }
         } catch (error) {
-            console.error(error);
             return {
                 statusCode: 500,
                 headers: { "Content-Type": "application/json" },
@@ -183,57 +153,35 @@ exports.handler = async (event) => {
         }
     }
 
-
-
-
-
-
+    // Handle `/reservations` endpoint - GET method
     if (event.resource === '/reservations' && event.httpMethod === 'GET') {
         try {
-            const params = { TableName: reservationsTable }
-            const data = await dynamoDB.scan(params).promise()
+            const params = { TableName: reservationsTable };
+            const data = await dynamoDB.scan(params).promise();
             return {
                 statusCode: 200,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ reservations: data.Items }) // Replace with actual data
             };
         } catch (e) {
-            console.log(e);
-
             return {
                 statusCode: 500,
                 headers: { "Content-Type": "application/json" },
-                body: e.message
-            }
+                body: JSON.stringify({ error: e.message })
+            };
         }
-
     }
 
-    async function checkIfTableExists(tableNumber) {
-        var params = {
-            ExpressionAttributeValues: {
-                ":tableNumber": parseInt(tableNumber)
-            },
-            FilterExpression: "number = :tableNumber",
-            KeyConditionExpression: "number = :tableNumber",
-            ProjectionExpression: "id, places",
-            TableName: tablesTable,
-        };
-
-        const data = await dynamoDB.scan(params).promise();
-        return data.Items.length > 0;
-    }
-
+    // Check if the table exists
     async function isTableExist(tableNumber) {
-        const parsedTableNumber = parseInt(tableNumber)
-        //we check if table exists here
+        const parsedTableNumber = parseInt(tableNumber);
         try {
             const response = await dynamoDB
                 .scan({
                     TableName: tablesTable,
                     FilterExpression: "#number = :tableNumberValue",
                     ExpressionAttributeNames: {
-                        "#number": "number", // Ensure "number" is the actual attribute name
+                        "#number": "number"
                     },
                     ExpressionAttributeValues: {
                         ":tableNumberValue": parsedTableNumber
@@ -241,17 +189,15 @@ exports.handler = async (event) => {
                 })
                 .promise();
             return response.Items.length > 0;
-
         } catch (error) {
-            console.error("Error checking table existence:", error);
             return false;
         }
     }
 
-
+    // Check for overlapping reservation
     async function hasOverlappingReservation(reservationData) {
         try {
-            const tableNumber = reservationData.tableNumber
+            const tableNumber = reservationData.tableNumber;
             const response = await dynamoDB
                 .scan({
                     TableName: reservationsTable,
@@ -267,44 +213,35 @@ exports.handler = async (event) => {
                 const newStart = new Date(`${reservationData.date} ${reservationData.slotTimeStart}`).getTime();
                 const newEnd = new Date(`${reservationData.date} ${reservationData.slotTimeEnd}`).getTime();
 
-                // Check if the time slots overlap
                 if (newStart < existingEnd && newEnd > existingStart) {
                     return true; // Overlap detected
                 }
             }
-
             return false; // No overlap
         } catch (e) {
-            console.error(e);
-
-            throw (e)
+            throw e;
         }
-
     }
 
-
-
+    // Handle `/reservations` endpoint - POST method
     if (event.resource === '/reservations' && event.httpMethod === 'POST') {
         try {
-            // identify if table exists
-            const tableExistence = await isTableExist(body.tableNumber)
+            const tableExistence = await isTableExist(body.tableNumber);
             if (!tableExistence) {
-                console.log('table do not exist');
                 return {
                     statusCode: 400,
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ message: "table do not exist" })
-                }
+                    body: JSON.stringify({ message: "Table does not exist" })
+                };
             }
-            // identify if new reservation overlaping older
-            const isOverlaping = await hasOverlappingReservation(body)
-            if (isOverlaping) {
-                console.log('You are overlapping reservation. Cancel');
+
+            const isOverlapping = await hasOverlappingReservation(body);
+            if (isOverlapping) {
                 return {
                     statusCode: 400,
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ message: "You are overlapping reservation. Cancel" })
-                }
+                    body: JSON.stringify({ message: "Reservation overlaps with an existing one" })
+                };
             }
 
             const id = uuidv4();
@@ -327,7 +264,6 @@ exports.handler = async (event) => {
                 body: JSON.stringify({ reservationId: id })
             };
         } catch (e) {
-            console.log(e);
             return {
                 statusCode: 500,
                 headers: { "Content-Type": "application/json" },
@@ -335,7 +271,6 @@ exports.handler = async (event) => {
             };
         }
     }
-
 
     return {
         statusCode: 404,
