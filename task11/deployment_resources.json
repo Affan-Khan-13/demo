@@ -22,7 +22,8 @@
             "cognito-idp:ListUserPools",
             "cognito-idp:ListUserPoolClients",
             "cognito-idp:AdminRespondToAuthChallenge",
-            "cognito-idp:AdminConfirmSignUp"
+            "cognito-idp:AdminConfirmSignUp",
+            "iam:GetPolicyVersion"
           ],
           "Effect": "Allow",
           "Resource": "*"
@@ -31,123 +32,6 @@
       "Version": "2012-10-17"
     },
     "resource_type": "iam_policy"
-  },
-  "task11_api": {
-    "resource_type": "api_gateway",
-    "deploy_stage": "api",
-    "dependencies": [],
-    "authorizers": {
-      "authorizer": {
-        "type": "COGNITO_USER_POOLS",
-        "identity_source": "method.request.header.Authorization",
-        "ttl": 300,
-        "user_pools": [
-          "${booking_userpool}"
-        ]
-      }
-    },
-    "resources": {
-      "/signin": {
-        "enable_cors": true,
-        "POST": {
-          "authorization_type": "NONE",
-          "integration_type": "lambda",
-          "lambda_name": "api_handler",
-          "api_key_required": false,
-          "method_request_parameters": {},
-          "integration_request_body_template": {},
-          "responses": [],
-          "integration_responses": [],
-          "default_error_pattern": true,
-          "enable_proxy": true
-        }
-      },
-      "/signup": {
-        "enable_cors": false,
-        "POST": {
-          "authorization_type": "NONE",
-          "integration_type": "lambda",
-          "lambda_name": "api_handler",
-          "api_key_required": false,
-          "method_request_parameters": {},
-          "integration_request_body_template": {},
-          "responses": [],
-          "integration_responses": [],
-          "default_error_pattern": true,
-          "enable_proxy": true
-        }
-      },
-      "/tables": {
-        "enable_cors": true,
-        "GET": {
-          "authorization_type": "authorizer",
-          "integration_type": "lambda",
-          "lambda_name": "api_handler",
-          "api_key_required": false,
-          "method_request_parameters": {},
-          "integration_request_body_template": {},
-          "responses": [],
-          "integration_responses": [],
-          "default_error_pattern": true,
-          "enable_proxy": true
-        },
-        "POST": {
-          "authorization_type": "authorizer",
-          "integration_type": "lambda",
-          "lambda_name": "api_handler",
-          "api_key_required": false,
-          "method_request_parameters": {},
-          "integration_request_body_template": {},
-          "responses": [],
-          "integration_responses": [],
-          "default_error_pattern": true,
-          "enable_proxy": true
-        }
-      },
-      "/tables/{tableId}": {
-        "enable_cors": true,
-        "GET": {
-          "authorization_type": "authorizer",
-          "integration_type": "lambda",
-          "lambda_name": "api_handler",
-          "api_key_required": false,
-          "method_request_parameters": {},
-          "integration_request_body_template": {},
-          "responses": [],
-          "integration_responses": [],
-          "default_error_pattern": true,
-          "enable_proxy": true
-        }
-      },
-      "/reservations": {
-        "enable_cors": true,
-        "GET": {
-          "authorization_type": "authorizer",
-          "integration_type": "lambda",
-          "lambda_name": "api_handler",
-          "api_key_required": false,
-          "method_request_parameters": {},
-          "integration_request_body_template": {},
-          "responses": [],
-          "integration_responses": [],
-          "default_error_pattern": true,
-          "enable_proxy": true
-        },
-        "POST": {
-          "authorization_type": "authorizer",
-          "integration_type": "lambda",
-          "lambda_name": "api_handler",
-          "api_key_required": false,
-          "method_request_parameters": {},
-          "integration_request_body_template": {},
-          "responses": [],
-          "integration_responses": [],
-          "default_error_pattern": true,
-          "enable_proxy": true
-        }
-      }
-    },
-    "tags": {}
   },
   "${reservations_table}": {
     "resource_type": "dynamodb_table",
@@ -169,7 +53,6 @@
     "autoscaling": [],
     "tags": {}
   },
- 
   "${booking_userpool}": {
     "resource_type": "cognito_idp",
     "password_policy": {
@@ -194,6 +77,19 @@
       ]
     },
     "tags": {}
+  },
+  "api-ui-hoster": {
+    "resource_type": "s3_bucket",
+    "acl": "private",
+    "location": "eu-central-1",
+    "cors": [],
+    "policy": {},
+    "public_access_block": {
+      "block_public_acls": true,
+      "ignore_public_acls": true,
+      "block_public_policy": true,
+      "restrict_public_buckets": true
+    },
+    "tags": {}
   }
-
 }
