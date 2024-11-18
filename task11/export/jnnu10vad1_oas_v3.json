@@ -2,8 +2,7 @@
   "openapi": "3.0.1",
   "info": {
     "title": "task11_api",
-    "version": "2024-11-18T07:26:41Z",
-    "description": "This API allows managing reservations, tables, and user authentication. It integrates with AWS Lambda for backend processing."
+    "version": "2024-11-18T07:26:41Z"
   },
   "servers": [
     {
@@ -18,101 +17,104 @@
   "paths": {
     "/reservations": {
       "get": {
-        "summary": "Fetch all reservations",
-        "description": "This method retrieves a list of all reservations.",
+        "summary": "Get All Reservations",
+        "description": "Retrieves a list of all reservations.",
         "responses": {
           "200": {
-            "description": "A list of reservations",
+            "description": "Successfully retrieved all reservations.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReservationsList"
+                  "$ref": "#/components/schemas/ReservationListResponse"
                 }
               }
             }
           },
           "400": {
-            "description": "Bad Request. The request could not be understood by the server.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Bad Request - Invalid request parameters."
           },
           "500": {
-            "description": "Internal Server Error. A problem occurred with the server.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Internal Server Error - Something went wrong on the server."
           }
         },
         "security": [
           {
             "authorizer": []
           }
-        ]
+        ],
+        "x-amazon-apigateway-integration": {
+          "httpMethod": "POST",
+          "uri": "arn:aws:apigateway:eu-central-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-central-1:196241772369:function:api_handler/invocations",
+          "responses": {
+            "default": {
+              "statusCode": "200",
+              "responseParameters": {
+                "method.response.header.Access-Control-Allow-Origin": "'*'"
+              }
+            }
+          },
+          "passthroughBehavior": "when_no_match",
+          "type": "aws_proxy"
+        }
       },
       "post": {
-        "summary": "Create a new reservation",
-        "description": "This method creates a new reservation.",
+        "summary": "Create a Reservation",
+        "description": "Creates a new reservation with the given details.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Reservation"
+                "$ref": "#/components/schemas/ReservationRequest"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Reservation successfully created",
+            "description": "Successfully created reservation.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Empty"
+                  "$ref": "#/components/schemas/ReservationResponse"
                 }
               }
             }
           },
           "400": {
-            "description": "Bad Request. The request could not be understood by the server.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Bad Request - Invalid reservation data."
+          },
+          "404": {
+            "description": "Not Found - Specified resource could not be found."
           },
           "500": {
-            "description": "Internal Server Error. A problem occurred with the server.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Internal Server Error - Something went wrong on the server."
           }
         },
         "security": [
           {
             "authorizer": []
           }
-        ]
+        ],
+        "x-amazon-apigateway-integration": {
+          "httpMethod": "POST",
+          "uri": "arn:aws:apigateway:eu-central-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-central-1:196241772369:function:api_handler/invocations",
+          "responses": {
+            "default": {
+              "statusCode": "200",
+              "responseParameters": {
+                "method.response.header.Access-Control-Allow-Origin": "'*'"
+              }
+            }
+          },
+          "passthroughBehavior": "when_no_match",
+          "type": "aws_proxy"
+        }
       },
       "options": {
         "responses": {
           "200": {
-            "description": "CORS headers set",
+            "description": "200 response",
             "headers": {
               "Access-Control-Allow-Origin": {
                 "schema": {
@@ -129,59 +131,7 @@
                   "type": "string"
                 }
               }
-            }
-          }
-        }
-      }
-    },
-    "/tables": {
-      "get": {
-        "summary": "Fetch all tables",
-        "description": "This method retrieves a list of all available tables.",
-        "responses": {
-          "200": {
-            "description": "A list of tables",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TablesList"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "authorizer": []
-          }
-        ]
-      },
-      "post": {
-        "summary": "Create a new table",
-        "description": "This method creates a new table in the system.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Table"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Table successfully created",
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -189,96 +139,31 @@
                 }
               }
             }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         },
-        "security": [
-          {
-            "authorizer": []
-          }
-        ]
-      },
-      "options": {
-        "responses": {
-          "200": {
-            "description": "CORS headers set",
-            "headers": {
-              "Access-Control-Allow-Origin": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "Access-Control-Allow-Methods": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "Access-Control-Allow-Headers": {
-                "schema": {
-                  "type": "string"
-                }
+        "x-amazon-apigateway-integration": {
+          "responses": {
+            "default": {
+              "statusCode": "200",
+              "responseParameters": {
+                "method.response.header.Access-Control-Allow-Methods": "'*'",
+                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'"
               }
             }
-          }
+          },
+          "requestTemplates": {
+            "application/json": "{\"statusCode\": 200}"
+          },
+          "passthroughBehavior": "when_no_match",
+          "type": "mock"
         }
-      }
-    },
-    "/signin": {
-      "post": {
-        "summary": "User sign-in",
-        "description": "This method allows a user to sign in with their credentials.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SignInRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "User signed in successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Empty"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid credentials",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "authorizer": []
-          }
-        ]
       }
     },
     "/signup": {
       "post": {
-        "summary": "User registration",
-        "description": "This method allows a new user to register.",
+        "summary": "Sign Up a New User",
+        "description": "Registers a new user with the provided details.",
         "requestBody": {
           "required": true,
           "content": {
@@ -291,37 +176,39 @@
         },
         "responses": {
           "200": {
-            "description": "User registered successfully",
+            "description": "Successfully created user.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Empty"
+                  "$ref": "#/components/schemas/SignUpResponse"
                 }
               }
             }
           },
           "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Bad Request - Invalid user data."
+          },
+          "500": {
+            "description": "Internal Server Error - Something went wrong on the server."
           }
         },
-        "security": [
-          {
-            "authorizer": []
-          }
-        ]
+        "x-amazon-apigateway-integration": {
+          "httpMethod": "POST",
+          "uri": "arn:aws:apigateway:eu-central-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-central-1:196241772369:function:api_handler/invocations",
+          "responses": {
+            "default": {
+              "statusCode": "200"
+            }
+          },
+          "passthroughBehavior": "when_no_match",
+          "type": "aws_proxy"
+        }
       }
     },
     "/tables/{tableId}": {
       "get": {
-        "summary": "Fetch details of a specific table",
-        "description": "This method retrieves details of a table by its ID.",
+        "summary": "Get Table Details",
+        "description": "Retrieves the details of a specific table based on the given table ID.",
         "parameters": [
           {
             "name": "tableId",
@@ -334,127 +221,180 @@
         ],
         "responses": {
           "200": {
-            "description": "Details of the table",
+            "description": "Successfully retrieved table details.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Table"
+                  "$ref": "#/components/schemas/TableDetailResponse"
                 }
               }
             }
           },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+          "404": {
+            "description": "Not Found - Table with the given ID does not exist."
+          },
+          "500": {
+            "description": "Internal Server Error - Something went wrong on the server."
           }
         },
         "security": [
           {
             "authorizer": []
           }
-        ]
+        ],
+        "x-amazon-apigateway-integration": {
+          "httpMethod": "POST",
+          "uri": "arn:aws:apigateway:eu-central-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-central-1:196241772369:function:api_handler/invocations",
+          "responses": {
+            "default": {
+              "statusCode": "200",
+              "responseParameters": {
+                "method.response.header.Access-Control-Allow-Origin": "'*'"
+              }
+            }
+          },
+          "passthroughBehavior": "when_no_match",
+          "type": "aws_proxy"
+        }
+      },
+      "options": {
+        "parameters": [
+          {
+            "name": "tableId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Methods": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Allow-Headers": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Empty"
+                }
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration": {
+          "responses": {
+            "default": {
+              "statusCode": "200",
+              "responseParameters": {
+                "method.response.header.Access-Control-Allow-Methods": "'*'",
+                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'"
+              }
+            }
+          },
+          "requestTemplates": {
+            "application/json": "{\"statusCode\": 200}"
+          },
+          "passthroughBehavior": "when_no_match",
+          "type": "mock"
+        }
       }
     }
   },
   "components": {
     "schemas": {
       "Empty": {
-        "type": "object",
-        "description": "An empty response body."
+        "title": "Empty Schema",
+        "type": "object"
       },
-      "ErrorResponse": {
+      "ReservationRequest": {
         "type": "object",
         "properties": {
-          "message": {
-            "type": "string",
-            "description": "Error message describing the issue"
+          "name": {
+            "type": "string"
           },
-          "code": {
+          "email": {
+            "type": "string"
+          },
+          "date": {
             "type": "string",
-            "description": "Error code indicating the error type"
+            "format": "date-time"
           }
         }
       },
-      "Reservation": {
+      "ReservationResponse": {
         "type": "object",
         "properties": {
           "reservationId": {
-            "type": "string",
-            "description": "The ID of the reservation"
+            "type": "string"
           },
-          "tableId": {
-            "type": "string",
-            "description": "The ID of the table reserved"
+          "name": {
+            "type": "string"
           },
-          "userId": {
-            "type": "string",
-            "description": "The ID of the user who made the reservation"
+          "email": {
+            "type": "string"
           },
-          "time": {
+          "date": {
             "type": "string",
-            "format": "date-time",
-            "description": "The date and time of the reservation"
+            "format": "date-time"
           }
         }
       },
-      "ReservationsList": {
+      "ReservationListResponse": {
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/Reservation"
-        }
-      },
-      "Table": {
-        "type": "object",
-        "properties": {
-          "tableId": {
-            "type": "string",
-            "description": "The unique ID of the table"
-          },
-          "seats": {
-            "type": "integer",
-            "description": "The number of seats available at the table"
-          }
-        }
-      },
-      "TablesList": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/Table"
-        }
-      },
-      "SignInRequest": {
-        "type": "object",
-        "properties": {
-          "username": {
-            "type": "string",
-            "description": "The username of the user"
-          },
-          "password": {
-            "type": "string",
-            "description": "The password of the user"
-          }
+          "$ref": "#/components/schemas/ReservationResponse"
         }
       },
       "SignUpRequest": {
         "type": "object",
         "properties": {
           "username": {
-            "type": "string",
-            "description": "The username for the new account"
+            "type": "string"
           },
           "password": {
-            "type": "string",
-            "description": "The password for the new account"
+            "type": "string"
           },
           "email": {
-            "type": "string",
-            "description": "The email address of the user"
+            "type": "string"
+          }
+        }
+      },
+      "SignUpResponse": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        }
+      },
+      "TableDetailResponse": {
+        "type": "object",
+        "properties": {
+          "tableId": {
+            "type": "string"
+          },
+          "seats": {
+            "type": "integer"
           }
         }
       }
