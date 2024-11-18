@@ -6,7 +6,7 @@
   },
   "servers": [
     {
-      "url": "https://0hpvgc88gl.execute-api.eu-central-1.amazonaws.com/{basePath}",
+      "url": "https://jnnu10vad1.execute-api.eu-central-1.amazonaws.com/{basePath}",
       "variables": {
         "basePath": {
           "default": "api"

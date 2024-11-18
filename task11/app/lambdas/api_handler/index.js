@@ -29,6 +29,7 @@ exports.handler = async (event) => {
 
   // Check if event.body exists before attempting to parse
   let body;
+  console.log(body);
   if (event.body) {
     try {
       body = JSON.parse(event.body);
